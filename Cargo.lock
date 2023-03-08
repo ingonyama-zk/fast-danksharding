@@ -216,6 +216,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fcaabb2fef8c910e7f4c7ce9f67a1283a1715879a7c230ca9d6d1ae31f16d91"
 
 [[package]]
+name = "fast-danksharding"
+version = "0.1.0"
+dependencies = [
+ "icicle-utils",
+ "rand",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -263,6 +271,7 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 [[package]]
 name = "icicle-utils"
 version = "0.1.0"
+source = "git+https://github.com/ingonyama-zk/icicle#3d947a2db46dbf882288b88b7115a2eedf4fe41c"
 dependencies = [
  "ark-bls12-381",
  "ark-ec",
