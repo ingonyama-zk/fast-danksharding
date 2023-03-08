@@ -1,0 +1,23 @@
+[package]
+name = "fast-danksharding"
+version = "0.1.0"
+edition = "2021"
+authors = [ "Ingonyama " ]
+description = "Ingonyama implementation of danksharding based on icicle library"
+homepage = "https://www.ingonyama.com"
+repository = "https://github.com/ingonyama-zk/fast-danksharding"
+
+[dependencies] 
+icicle-utils = { git = "https://github.com/ingonyama-zk/icicle" }
+
+[dev-dependencies]
+rand="*"
+
+[features]
+default = ["bls12_381"]
+bls12_381 = ["icicle-utils/bls12_381"]
+
+[profile.dev]
+opt-level = 0
+debug = true
+codegen-units = 256
