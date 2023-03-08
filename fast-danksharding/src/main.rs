@@ -1,9 +1,9 @@
 use icicle_utils::{
     field::{PointAffineNoInfinity, Scalar, BASE_LIMBS, SCALAR_LIMBS},
     import_scalars, intt,
-    matrix::{interleave_cols, rows_to_cols},
+    matrix::{interleave_cols, rows_to_cols, split_vec_to_matrix},
     msm, mult_sc_vec, ntt, store_random_points,
-    utils::{from_limbs, import_limbs, list_to_reverse_bit_order},
+    utils::{from_limbs, import_limbs, list_to_reverse_bit_order, csv_to_u32_limbs},
     M_POINTS, N_ROWS,
 };
 
