@@ -35,7 +35,7 @@ pub fn main_flow() {
 
     let tf_u = &get_debug_data_scalars("roots_u.csv", 1, N_ROWS)[0]; //TODO: csv
 
-    println!("pre-branch {:?}", o.elapsed());
+    println!("pre-branch {:0.3?}", o.elapsed());
     let o = Instant::now();
 
     ////////////////////////////////
@@ -85,7 +85,7 @@ pub fn main_flow() {
     let K_debug = get_debug_data_points_proj_xy1_vec("K.csv", 2 * N_ROWS);
     debug_assert_eq!(K, K_debug);
 
-    println!("Branch1 {:?}", o.elapsed());
+    println!("Branch1 {:0.3?}", o.elapsed());
     let o = Instant::now();
 
     ////////////////////////////////
@@ -189,7 +189,7 @@ pub fn main_flow() {
 
     debug_assert_eq!(D, D_debug);
 
-    println!("Branch2 {:?}", o.elapsed());
+    println!("Branch2 {:0.3?}", o.elapsed());
     let o = Instant::now();
 
     ////////////////////////////////
@@ -216,7 +216,7 @@ pub fn main_flow() {
 
     const l: usize = 16;
 
-    println!("here is the start");
+    println!("loaded test data, processing...");
 
     //d0 = MUL_row(d[mu], [S]) 1x8192
     let d0: Vec<_> = (0..2 * N_ROWS)
@@ -237,7 +237,7 @@ pub fn main_flow() {
     debug_assert_eq!(d1, d1_debug);
 
     let mut delta0_flat: Vec<_> = d1.into_iter().flatten().collect();
-
+    println!("iecntt batch for delta0");
     iecntt_batch(&mut delta0_flat, 2 * N_ROWS, 0);
 
     let mut delta0 = split_vec_to_matrix(&delta0_flat, 2 * N_ROWS).clone();
@@ -253,6 +253,7 @@ pub fn main_flow() {
 
     let mut delta1_flat: Vec<_> = q_.into_iter().flatten().collect();
 
+    println!("ecntt batch for delta1");
     //q[mu] = ECNTT_row(delta1) 1x512
     ecntt_batch(&mut delta1_flat, 2 * N_ROWS, 0);
 
@@ -260,7 +261,7 @@ pub fn main_flow() {
 
     assert_eq!(q_, q_debug);
 
-    println!("before finally");
+    println!("finall check");
 
     let P = q_
         .iter()
@@ -271,10 +272,8 @@ pub fn main_flow() {
     //final assertion
     assert_eq!(P, P_debug);
 
-    assert_ne!(P[37][38], Point::zero());
-    // println!("P       {:08X?}", P[N_ROWS - 2][N_ROWS + 2]);
-    // println!("P_debug {:08X?}", P_debug[N_ROWS - 2][N_ROWS + 2]);
-    println!("Branch3 {:?}", o.elapsed());
+    assert_ne!(P[12][23], Point::zero()); //dummy check
+    println!("Branch3 {:0.3?}", o.elapsed());
     println!("success !!!",);
 }
 
