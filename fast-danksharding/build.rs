@@ -23,5 +23,5 @@ fn main() {
     nvcc.files([
         "./src/cuda/lib.cu",
     ]);
-    nvcc.compile("ingo_dnkshard"); //TODO: extension??
+    nvcc.compile("ingo_dankshard"); //TODO: extension??
 }
