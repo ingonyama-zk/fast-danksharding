@@ -43,7 +43,7 @@ pub fn addp_vec(
     }
 }
 
-pub fn get_debug_data_scalars(filename: &str, height: usize, lenght: usize) -> Vec<Vec<Scalar>> {
+fn get_debug_data_scalars(filename: &str, height: usize, lenght: usize) -> Vec<Vec<Scalar>> {
     let data_root_path = get_test_set_path();
 
     let limbs = csv_be_to_u32_be_limbs(&format!("{}{}", data_root_path, filename), SCALAR_LIMBS);
@@ -71,8 +71,46 @@ fn get_test_set_path() -> String {
     data_root_path
 }
 
+fn point_from_xy1_be_limbs(value: &[u32]) -> Point {
+    let l = value.len();
+    assert_eq!(l, 2 * BASE_LIMBS, "length must be 2 * {}", BASE_LIMBS);
+    let mut value = value.to_vec();
+    value.reverse();
+
+    fn py_inf() -> Point { //Ethereum implementation uses special Infinity point
+        Point {
+            x: BaseField {
+                s: [
+                    00000000, 00000000, 00000000, 00000000, 00000000, 00000000, 00000000, 00000000,
+                    00000000, 00000000, 00000000, 0x40000000,
+                ],
+            },
+            y: BaseField::zero(),
+            z: BaseField::zero(),
+        }
+    }
+
+    let py_inf = py_inf();
+
+    let x = BaseField {
+        s: value[BASE_LIMBS..BASE_LIMBS * 2].try_into().unwrap(),
+    };
+    let y = BaseField {
+        s: value[..BASE_LIMBS].try_into().unwrap(),
+    };
+
+    if x == py_inf.x && y == py_inf.y {
+        return Point::infinity();
+    }
+    Point {
+        x,
+        y,
+        z: BaseField::one(),
+    }
+}
+
 fn get_debug_data_points_xy1(filename: &str, height: usize, lenght: usize) -> Vec<Vec<Point>> {
-    get_debug_data_points(filename, height, lenght, Point::from_xy1_be_limbs, 2)
+    get_debug_data_points(filename, height, lenght, point_from_xy1_be_limbs, 2)
 }
 
 fn get_debug_data_points<T: Copy + Clone>(
@@ -95,7 +133,7 @@ fn get_debug_data_points<T: Copy + Clone>(
     result
 }
 
-pub fn get_debug_data_points_proj_xy1_vec(filename: &str, lenght: usize) -> Vec<Point> {
+fn get_debug_data_points_proj_xy1_vec(filename: &str, lenght: usize) -> Vec<Point> {
     get_debug_data_points_xy1(filename, 1, lenght)[0].to_vec()
 }
 
@@ -104,13 +142,19 @@ mod tests {
     use ark_bls12_381::{Fr, FrParameters};
     use ark_ec::msm::VariableBaseMSM;
     use ark_ff::{BigInteger256, FpParameters};
-    use icicle_utils::{msm, mult_sc_vec, multp_vec};
+    use icicle_utils::{msm, mult_sc_vec, multp_vec, utils::u32_vec_to_u64_vec};
 
     use crate::{
         fast_danksharding::{M_POINTS, N_ROWS},
         utils::*,
         *,
     };
+
+    fn scalar_to_ark_mod_p(sc: &Scalar) -> Fr {
+        let sc_ark = BigInteger256::new(u32_vec_to_u64_vec(&sc.limbs()).try_into().unwrap());
+
+        Fr::new(sc_ark)
+    }
 
     #[test]
     #[allow(non_snake_case)]
@@ -122,7 +166,7 @@ mod tests {
             BASE_LIMBS,
         );
 
-        let p = Point::from_xy1_be_limbs(&b);
+        let p = point_from_xy1_be_limbs(&b);
         assert!(p.to_ark_affine().is_on_curve());
 
         let x_bf_limbs = hex_be_to_padded_u32_le_vec("17f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb", BASE_LIMBS);
@@ -154,7 +198,7 @@ mod tests {
         assert_eq!(msm_result, K0[0]);
 
         let point_r_ark: Vec<_> = points.iter().map(|x| x.to_ark_repr()).collect();
-        let scalars_r_ark: Vec<_> = scalars.iter().map(|x| x.to_ark_mod_p().0).collect();
+        let scalars_r_ark: Vec<_> = scalars.iter().map(|x| scalar_to_ark_mod_p(x).0).collect();
 
         let msm_result_ark = VariableBaseMSM::multi_scalar_mul(&point_r_ark, &scalars_r_ark);
 
@@ -172,7 +216,7 @@ mod tests {
                 BASE_LIMBS,
             );
 
-        let p = Point::from_xy1_be_limbs(&b);
+        let p = point_from_xy1_be_limbs(&b);
 
         assert!(p.to_ark_affine().is_on_curve());
     }
@@ -197,10 +241,10 @@ mod tests {
 
         let ark_mod = Fr::new(modulus);
         assert_eq!(
-            sc.to_ark_mod_p(),
+            scalar_to_ark_mod_p(&sc),
             ark_mod,
             "\n******\n{:08X?}\n******\n{:08X?}\n******\n",
-            sc.to_ark_mod_p(),
+            scalar_to_ark_mod_p(&sc),
             ark_mod
         );
     }
@@ -214,13 +258,6 @@ mod tests {
 
         assert_eq!(limbs.len(), SCALAR_LIMBS);
         let scalar = Scalar::from_limbs_be(&limbs);
-
-        // let sample_u64le = [
-        //     0xf094d4143f7d4adeu64,
-        //     0xb8ff59367c57bf66u64,
-        //     0xf6d56ce4a99bd4e8u64,
-        //     0x12039d72be179e9cu64,
-        // ];
 
         let sample_u32le = [
             0x3f7d4adeu32,

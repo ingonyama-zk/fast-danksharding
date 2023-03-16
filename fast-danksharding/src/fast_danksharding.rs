@@ -5,7 +5,7 @@ use icicle_utils::{
     *,
 };
 
-use crate::*;
+use crate::{*, matrix::*, utils::*};
 
 pub const FLOW_SIZE: usize = 1 << 12; //4096  //prod flow size
 pub const TEST_SIZE_DIV: usize = 1; //TODO: Prod size / test size for speedup
