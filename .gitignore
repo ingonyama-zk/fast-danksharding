@@ -11,4 +11,4 @@
 **/__pycache__/
 **/.DS_Store
 kzg_data_availability/blst/
-Cargo.lock
+**/Cargo.lock
