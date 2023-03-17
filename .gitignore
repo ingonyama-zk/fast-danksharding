@@ -10,3 +10,5 @@
 **/.*lock*csv#
 **/__pycache__/
 **/.DS_Store
+kzg_data_availability/blst/bindings/
+**/Cargo.lock
