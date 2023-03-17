@@ -1,0 +1,3 @@
+[submodule "icicle"]
+	path = icicle
+	url = https://github.com/ingonyama-zk/icicle.git
