@@ -282,7 +282,6 @@ mod tests {
     use super::main_flow;
 
     #[test]
-    #[ignore = "TODO: running long"]
     fn test_main_flow() {
         main_flow();
     }
