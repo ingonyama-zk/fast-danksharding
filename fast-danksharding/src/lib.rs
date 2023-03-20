@@ -44,18 +44,21 @@ pub fn addp_vec(
 }
 
 fn get_debug_data_scalars(filename: &str, height: usize, lenght: usize) -> Vec<Vec<Scalar>> {
-    let data_root_path = get_test_set_path();
-
-    let limbs = csv_be_to_u32_be_limbs(&format!("{}{}", data_root_path, filename), SCALAR_LIMBS);
-
-    let result = split_vec_to_matrix(
-        &from_limbs(limbs, SCALAR_LIMBS, Scalar::from_limbs_be),
-        lenght,
-    );
+    let from_limbs = get_debug_data_scalar_vec(filename);
+    let result = split_vec_to_matrix(&from_limbs, lenght);
     assert_eq!(result.len(), height);
     assert_eq!(result[0].len(), lenght);
 
     result
+}
+
+fn get_debug_data_scalar_vec(filename: &str) -> Vec<Scalar> {
+    let limbs = csv_be_to_u32_be_limbs(
+        &format!("{}{}", get_test_set_path(), filename),
+        SCALAR_LIMBS,
+    );
+    let from_limbs = from_limbs(limbs, SCALAR_LIMBS, Scalar::from_limbs_be);
+    from_limbs
 }
 
 fn get_test_set_path() -> String {
@@ -77,7 +80,8 @@ fn point_from_xy1_be_limbs(value: &[u32]) -> Point {
     let mut value = value.to_vec();
     value.reverse();
 
-    fn py_inf() -> Point { //Ethereum implementation uses special Infinity point
+    fn py_inf() -> Point {
+        //Ethereum implementation uses special Infinity point
         Point {
             x: BaseField {
                 s: [
