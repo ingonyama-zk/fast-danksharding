@@ -19,7 +19,7 @@ This implementation is meant to run entirely on an NVIDIA GPU.The code is a high
 git submodule init
 git submodule update
 python3 kzg_data_availability/tests.py
-cargo test --release
+cargo run --release
 ```
 
 You'll find a release ready binary at `target/release/`.
