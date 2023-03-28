@@ -49,10 +49,7 @@ pub fn main_flow() {
     let br1_time = Instant::now();
 
     // K0 = MSM_rows(C_rows) (256x1)
-    let K0 = C_rows
-        .chunks(M_POINTS)
-        .map(|scalars| msm(&s_affine, &scalars, 0usize))
-        .collect::<Vec<_>>();
+    let K0 = msm_batch(&vec![s_affine; N_ROWS].concat(), &C_rows, N_ROWS, 0);
     println!("K0 {:0.3?}", br1_time.elapsed());
     debug_assert_eq!(K0, get_debug_data_points_proj_xy1_vec("K0.csv", N_ROWS));
 
