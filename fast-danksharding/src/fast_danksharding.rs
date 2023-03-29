@@ -4,6 +4,9 @@ use icicle_utils::{field::Point, *};
 
 use crate::{matrix::*, utils::*, *};
 
+#[cfg(feature = "nvtx")]
+use nvtx::{range_pop, range_push};
+
 pub const FLOW_SIZE: usize = 1 << 12; //4096  //prod flow size
 pub const TEST_SIZE_DIV: usize = 1; //TODO: Prod size / test size for speedup
 pub const TEST_SIZE: usize = FLOW_SIZE / TEST_SIZE_DIV; //test flow size
