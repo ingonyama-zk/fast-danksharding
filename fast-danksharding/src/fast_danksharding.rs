@@ -49,10 +49,7 @@ pub fn main_flow() {
     let br1_time = Instant::now();
 
     // K0 = MSM_rows(C_rows) (256x1)
-    let K0 = C_rows
-        .chunks(M_POINTS)
-        .map(|scalars| msm(&s_affine, &scalars, 0usize))
-        .collect::<Vec<_>>();
+    let K0 = msm_batch(&vec![s_affine; N_ROWS].concat(), &C_rows, N_ROWS, 0);
     println!("K0 {:0.3?}", br1_time.elapsed());
     debug_assert_eq!(K0, get_debug_data_points_proj_xy1_vec("K0.csv", N_ROWS));
 
@@ -77,9 +74,9 @@ pub fn main_flow() {
     // K = [K0, K1]  // 2*N_POINTS x 1 (512x1 commitments)
     let K = [K0, K1].concat();
     println!("K {:0.3?}", br1_time.elapsed());
-    debug_assert_eq!(K, get_debug_data_points_proj_xy1_vec("K.csv", 2 * N_ROWS));
-
+    
     println!("Branch1 {:0.3?}", br1_time.elapsed());
+    assert_eq!(K, get_debug_data_points_proj_xy1_vec("K.csv", 2 * N_ROWS));
 
     ////////////////////////////////
     println!("Branch 2");
