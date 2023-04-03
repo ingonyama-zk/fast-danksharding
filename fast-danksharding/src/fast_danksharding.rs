@@ -99,7 +99,7 @@ pub fn main_flow() {
     // K = [K0, K1]  // 2*N_ROWS x 1 (512x1 commitments)
     let K = [K0, K1].concat();
     println!("K {:0.3?}", br1_time.elapsed());
-
+    
     println!("Branch1 {:0.3?}", br1_time.elapsed());
     assert_eq!(K, get_debug_data_points_proj_xy1_vec("K.csv", 2 * N_ROWS));
 

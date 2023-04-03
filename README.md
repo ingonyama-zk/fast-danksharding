@@ -8,12 +8,17 @@ This implementation is meant to run entirely on an NVIDIA GPU.The code is a high
 
 ## Build and usage
 
-> NOTE: [NVCC] and [Rust] are prerequisites for building.
+> NOTE: [NVCC], [Rust] are prerequisites for building. Python 3.10 and up for test data generation.
 
 1. ICICLE library supports BLS12-381 as default curve, that is the curve in use for danksharding
-2. To build and run fast-danksharding using cargo
+2. Go into git dir init the submodule and update
+3. Generate test vectors
+4. To build and run fast-danksharding using cargo
 
 ```sh
+git submodule init
+git submodule update
+python3 kzg_data_availability/tests.py
 cargo run --release
 ```
 
