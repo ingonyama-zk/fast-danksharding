@@ -29,6 +29,9 @@ pub fn main_flow() {
     //TODO: now S is preprocessed, copy preprocessing here
     let S = get_debug_data_points_proj_xy1_vec("S.csv", 2 * M_POINTS);
 
+    let mut d0 = vec![S; 2 * N_ROWS].concat();
+    let mut d1 = vec![Point::infinity(); (2 * N_ROWS) * (2 * M_POINTS / l)];
+
     let mut q_ = Vec::<Vec<Point>>::new();
     const l: usize = 16;
 
@@ -245,8 +248,6 @@ pub fn main_flow() {
     println!("Branch 3");
     ////////////////////////////////
 
-    let mut d0 = vec![S; 2 * N_ROWS].concat();
-    let mut d1 = vec![Point::infinity(); (2 * N_ROWS) * (2 * M_POINTS / l)];
     let D_b4rbo = D_b4rbo.concat();
 
     let br3_time = Instant::now();
