@@ -4,6 +4,9 @@ pub mod utils;
 
 use std::ffi::c_int;
 
+use rustacuda::memory::DevicePointer;
+use rustacuda::prelude::DeviceBuffer;
+
 use icicle_utils::field::*;
 
 use crate::{
@@ -19,6 +22,14 @@ extern "C" {
         nof_rows: usize,
         nof_cols: usize,
         l: usize,
+        device_id: usize,
+    ) -> c_int;
+
+    fn transpose_matrix(
+        out: DevicePointer<ScalarField>,
+        input: DevicePointer<ScalarField>,
+        nof_rows: usize,
+        nof_cols: usize,
         device_id: usize,
     ) -> c_int;
 }
@@ -43,6 +54,23 @@ pub fn addp_vec(
     }
 }
 
+pub fn transpose_scalar_matrix(
+    output: &mut DevicePointer<ScalarField>,
+    input: &mut DeviceBuffer<ScalarField>,
+    nof_rows: usize,
+    nof_cols: usize,
+) -> i32 {
+    unsafe {
+        transpose_matrix(
+            *output,
+            input.as_device_ptr(),
+            nof_rows,
+            nof_cols,
+            0,
+        )
+    }
+}
+
 fn get_debug_data_scalars(filename: &str, height: usize, lenght: usize) -> Vec<Vec<Scalar>> {
     let from_limbs = get_debug_data_scalar_vec(filename);
     let result = split_vec_to_matrix(&from_limbs, lenght);
@@ -58,6 +86,22 @@ fn get_debug_data_scalar_vec(filename: &str) -> Vec<Scalar> {
         SCALAR_LIMBS,
     );
     let from_limbs = from_limbs(limbs, SCALAR_LIMBS, Scalar::from_limbs_be);
+    from_limbs
+}
+
+fn get_debug_data_scalar_field_vec(filename: &str) -> Vec<ScalarField> {
+    let limbs = csv_be_to_u32_be_limbs(
+        &format!("{}{}", get_test_set_path(), filename),
+        SCALAR_LIMBS,
+    );
+
+    fn field_from_limbs_be(a: &[u32]) -> ScalarField {
+        let mut a_mut = a.to_vec();
+        a_mut.reverse();
+        ScalarField::from_limbs(&a_mut)
+    }
+
+    let from_limbs = from_limbs(limbs, SCALAR_LIMBS, field_from_limbs_be);
     from_limbs
 }
 

@@ -1,3 +1,4 @@
 [submodule "icicle"]
 	path = icicle
-	url = https://github.com/ingonyama-zk/icicle.git
+	url = https://github.com/DmytroTym/icicle/
+	branch = new_api
