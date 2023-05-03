@@ -1,7 +1,6 @@
 use std::time::Instant;
 
 use rustacuda::prelude::*;
-use rustacuda::memory::DevicePointer;
 use icicle_utils::{field::Point, *};
 
 use crate::{matrix::*, utils::*, *};
@@ -262,11 +261,8 @@ pub fn main_flow() {
 #[allow(non_snake_case)]
 #[allow(non_upper_case_globals)]
 pub fn alternate_flow() {
-    let D_in_host = get_debug_data_scalar_field_vec("D_in.csv");
-    let tf_u = &get_debug_data_scalars("roots_u.csv", 1, N_ROWS)[0];
+    let D_in_host = get_debug_data_scalar_vec("D_in.csv");
     let SRS_host = get_debug_data_points_proj_xy1_vec("SRS.csv", M_POINTS);
-    let roots_w = get_debug_data_scalars("roots_w.csv", M_POINTS, 1);
-    let tf_w = rows_to_cols(&roots_w)[0].to_vec().to_vec();
     //TODO: now S is preprocessed, copy preprocessing here
     let S = get_debug_data_points_proj_xy1_vec("S.csv", 2 * M_POINTS);
 
@@ -294,6 +290,7 @@ pub fn alternate_flow() {
 
     println!("pre-computation {:0.3?}", pre_time.elapsed());
 
+    reverse_order_scalars_batch(&mut D_in, N_ROWS);
     //C_rows = INTT_rows(D_in)
     let mut C_rows = interpolate_scalars_batch(&mut D_in, &mut interpolate_row_domain, N_ROWS);
 
@@ -305,25 +302,27 @@ pub fn alternate_flow() {
     let br1_time = Instant::now();
 
     // K0 = MSM_rows(C_rows) (256x1)
-    let mut K0 = commit_batch(&mut SRS, &mut C_rows, N_ROWS);
+    let mut K0 = commit_batch(&mut SRS, &mut C_rows, N_ROWS);    
+    let mut K: Vec<Point> = (0..2 * N_ROWS).map(|_| Point::zero()).collect();
+    K0.copy_to(&mut K[..N_ROWS]).unwrap();
     println!("K0 {:0.3?}", br1_time.elapsed());
 
+    reverse_order_points(&mut K0);
     // B0 = ECINTT_col(K0) N_POINTS x 1 (256x1)
     let mut B0 = interpolate_points(&mut K0, &mut interpolate_column_domain);
     println!("B0 {:0.3?}", br1_time.elapsed());
 
     // K1 = ECNTT_col(MUL_col(B0, [1 u u^2 ...])) N_POINTS x 1 (256x1)
-    let K1 = evaluate_points_on_coset(&mut B0, &mut evaluate_column_domain, &mut column_coset);
+    let mut K1 = evaluate_points_on_coset(&mut B0, &mut evaluate_column_domain, &mut column_coset);
     println!("K1 {:0.3?}", br1_time.elapsed());
+    reverse_order_points(&mut K1);
 
     // K = [K0, K1]  // 2*N_POINTS x 1 (512x1 commitments)
-    let mut K: Vec<Point> = (0..2 * N_ROWS).map(|_| Point::zero()).collect();
-    K0.copy_to(&mut K[..N_ROWS]).unwrap();
     K1.copy_to(&mut K[N_ROWS..]).unwrap();
     println!("K {:0.3?}", br1_time.elapsed());
     
-    println!("Branch1 {:0.3?}", br1_time.elapsed());
     assert_eq!(K, get_debug_data_points_proj_xy1_vec("K.csv", 2 * N_ROWS));
+    println!("Branch1 {:0.3?}", br1_time.elapsed());
 
     ////////////////////////////////
     println!("Branch 2");
@@ -337,21 +336,28 @@ pub fn alternate_flow() {
     transpose_scalar_matrix(&mut D_transposed.as_device_ptr(), &mut D_in, M_POINTS, N_ROWS);
     transpose_scalar_matrix(&mut D_transposed.as_device_ptr().wrapping_offset((N_ROWS * M_POINTS) as isize), &mut D_rows, M_POINTS, N_ROWS);
 
-    let mut C0 = interpolate_scalars_batch(&mut D_transposed, &mut interpolate_column_domain, 2 * M_POINTS);
-    let mut D_cols = evaluate_scalars_on_coset_batch(&mut C0, &mut evaluate_column_domain, 2 * M_POINTS, &mut column_coset);
-
     let mut D = unsafe { DeviceBuffer::uninitialized(4 * N_ROWS * M_POINTS).unwrap() };
     transpose_scalar_matrix(&mut D.as_device_ptr(), &mut D_transposed, N_ROWS, 2 * M_POINTS);
+    
+    reverse_order_scalars_batch(&mut D_transposed, 2 * M_POINTS);
+    let mut C0 = interpolate_scalars_batch(&mut D_transposed, &mut interpolate_column_domain, 2 * M_POINTS);
+    let mut D_cols = evaluate_scalars_on_coset_batch(&mut C0, &mut evaluate_column_domain, 2 * M_POINTS, &mut column_coset);
+    reverse_order_scalars_batch(&mut D_cols, 2 * M_POINTS);
+
     transpose_scalar_matrix(&mut D.as_device_ptr().wrapping_offset((2 * N_ROWS * M_POINTS) as isize), &mut D_cols, N_ROWS, 2 * M_POINTS);
 
     let mut D_host_flat: Vec<ScalarField> = (0..4 * N_ROWS * FLOW_SIZE).map(|_| ScalarField::zero()).collect();
     D.copy_to(&mut D_host_flat[..]).unwrap();
-    let D_host_flat = D_host_flat.into_iter().map(|x| { Scalar { s: x } }).collect::<Vec<_>>();
     let D_host = D_host_flat.chunks(2 * M_POINTS).collect::<Vec<_>>();
-    assert_eq!(D_host, get_debug_data_scalars("D.csv", 2 * N_ROWS, 2 * M_POINTS));
     
     println!("Branch2 {:0.3?}", br2_time.elapsed());
-    let D_b4rbo = D_host.clone();
+    debug_assert_eq!(D_host, get_debug_data_scalars("D.csv", 2 * N_ROWS, 2 * M_POINTS));
+
+    reverse_order_scalars_batch(&mut D, 2 * N_ROWS);
+    let mut D_b4rbo_flat: Vec<ScalarField> = (0..4 * N_ROWS * FLOW_SIZE).map(|_| ScalarField::zero()).collect();
+    D.copy_to(&mut D_b4rbo_flat[..]).unwrap();
+    let D_b4rbo = D_b4rbo_flat.chunks(2 * M_POINTS).collect::<Vec<_>>();
+    debug_assert_eq!(D_b4rbo, get_debug_data_scalars("D_b4rbo.csv", 2 * N_ROWS, 2 * M_POINTS));
 
     ////////////////////////////////
     println!("Branch 3");
