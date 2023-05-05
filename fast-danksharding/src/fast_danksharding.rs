@@ -6,14 +6,14 @@ use icicle_utils::{field::Point, *};
 use crate::{matrix::*, utils::*, *};
 
 pub const FLOW_SIZE: usize = 1 << 12; //4096  //prod flow size
-pub const TEST_SIZE_DIV: usize = 1; //TODO: Prod size / test size for speedup
-pub const TEST_SIZE: usize = FLOW_SIZE / TEST_SIZE_DIV; //test flow size
-pub const M_POINTS: usize = TEST_SIZE;
-pub const LOG_M_POINTS: usize = 12;
+pub const LOG_TEST_SIZE_DIV: usize = 3; //TODO: Prod size / test size for speedup
+pub const TEST_SIZE_DIV: usize = 1 << LOG_TEST_SIZE_DIV; //TODO: Prod size / test size for speedup
+pub const M_POINTS: usize = FLOW_SIZE / TEST_SIZE_DIV; //test flow size
+pub const LOG_M_POINTS: usize = 12 - LOG_TEST_SIZE_DIV;
 pub const SRS_SIZE: usize = M_POINTS;
 pub const S_GROUP_SIZE: usize = 2 * M_POINTS;
 pub const N_ROWS: usize = 256 / TEST_SIZE_DIV;
-pub const LOG_N_ROWS: usize = 8;
+pub const LOG_N_ROWS: usize = 8 - LOG_TEST_SIZE_DIV;
 pub const FOLD_SIZE: usize = 512 / TEST_SIZE_DIV;
 
 //TODO: the casing is to match diagram
@@ -255,7 +255,7 @@ pub fn main_flow() {
     );
 
     assert_ne!(P[12][23], Point::zero()); //dummy check
-    println!("success !!!",);
+    println!("success !!!");
 }
 
 #[allow(non_snake_case)]
@@ -264,9 +264,8 @@ pub fn alternate_flow() {
     let D_in_host = get_debug_data_scalar_vec("D_in.csv");
     let SRS_host = get_debug_data_points_proj_xy1_vec("SRS.csv", M_POINTS);
     //TODO: now S is preprocessed, copy preprocessing here
-    let S = get_debug_data_points_proj_xy1_vec("S.csv", 2 * M_POINTS);
+    let S_host = get_debug_data_points_proj_xy1_vec("S.csv", 2 * M_POINTS);
 
-    let mut q_ = Vec::<Vec<Point>>::new();
     const l: usize = 16;
     println!("loaded test data, processing...");
 
@@ -278,6 +277,8 @@ pub fn alternate_flow() {
     let mut evaluate_row_domain = build_domain(M_POINTS, LOG_M_POINTS, false);
     let mut interpolate_column_domain = build_domain(N_ROWS, LOG_N_ROWS, true);
     let mut evaluate_column_domain = build_domain(N_ROWS, LOG_N_ROWS, false);
+    let mut interpolate_column_large_domain = build_domain(2 * N_ROWS, LOG_N_ROWS + 1, true);
+    let mut evaluate_column_large_domain = build_domain(2 * N_ROWS, LOG_N_ROWS + 1, false);
     // build cosets (i.e. powers of roots of unity `w` and `v`)
     let mut row_coset = build_domain(M_POINTS, LOG_M_POINTS + 1, false);
     let mut column_coset = build_domain(N_ROWS, LOG_N_ROWS + 1, false);
@@ -285,13 +286,17 @@ pub fn alternate_flow() {
     let mut D_in = DeviceBuffer::from_slice(&D_in_host[..]).unwrap();
     // transfer the SRS into device memory
     debug_assert!(SRS_host[0].to_ark_affine().is_on_curve());
-    let s_affine: Vec<_> = vec![SRS_host.iter().map(|p| p.to_xy_strip_z()).collect::<Vec<_>>(); N_ROWS].concat();
-    let mut SRS = DeviceBuffer::from_slice(&s_affine[..]).unwrap();
+    let SRS_affine: Vec<_> = vec![SRS_host.iter().map(|p| p.to_xy_strip_z()).collect::<Vec<_>>(); N_ROWS].concat();
+    let mut SRS = DeviceBuffer::from_slice(&SRS_affine[..]).unwrap();
+    // transfer S into device memory after suitable bit-reversal
+    let S_host_rbo = list_to_reverse_bit_order(&S_host[..])[..].chunks(l).map(|chunk| list_to_reverse_bit_order(chunk)).collect::<Vec<_>>().concat();
+    let S_affine: Vec<_> = vec![S_host_rbo.iter().map(|p| p.to_xy_strip_z()).collect::<Vec<_>>(); 2 * N_ROWS].concat();
+    let mut S = DeviceBuffer::from_slice(&S_affine[..]).unwrap();
 
     println!("pre-computation {:0.3?}", pre_time.elapsed());
 
-    reverse_order_scalars_batch(&mut D_in, N_ROWS);
     //C_rows = INTT_rows(D_in)
+    reverse_order_scalars_batch(&mut D_in, N_ROWS);
     let mut C_rows = interpolate_scalars_batch(&mut D_in, &mut interpolate_row_domain, N_ROWS);
 
     println!("pre-branch {:0.3?}", pre_time.elapsed());
@@ -303,7 +308,7 @@ pub fn alternate_flow() {
 
     // K0 = MSM_rows(C_rows) (256x1)
     let mut K0 = commit_batch(&mut SRS, &mut C_rows, N_ROWS);    
-    let mut K: Vec<Point> = (0..2 * N_ROWS).map(|_| Point::zero()).collect();
+    let mut K = vec![Point::zero(); 2 * N_ROWS];
     K0.copy_to(&mut K[..N_ROWS]).unwrap();
     println!("K0 {:0.3?}", br1_time.elapsed());
 
@@ -346,94 +351,45 @@ pub fn alternate_flow() {
 
     transpose_scalar_matrix(&mut D.as_device_ptr().wrapping_offset((2 * N_ROWS * M_POINTS) as isize), &mut D_cols, N_ROWS, 2 * M_POINTS);
 
-    let mut D_host_flat: Vec<ScalarField> = (0..4 * N_ROWS * FLOW_SIZE).map(|_| ScalarField::zero()).collect();
+    let mut D_host_flat = vec![ScalarField::zero(); 4 * N_ROWS * M_POINTS];
     D.copy_to(&mut D_host_flat[..]).unwrap();
     let D_host = D_host_flat.chunks(2 * M_POINTS).collect::<Vec<_>>();
     
     println!("Branch2 {:0.3?}", br2_time.elapsed());
     debug_assert_eq!(D_host, get_debug_data_scalars("D.csv", 2 * N_ROWS, 2 * M_POINTS));
 
-    reverse_order_scalars_batch(&mut D, 2 * N_ROWS);
-    let mut D_b4rbo_flat: Vec<ScalarField> = (0..4 * N_ROWS * FLOW_SIZE).map(|_| ScalarField::zero()).collect();
-    D.copy_to(&mut D_b4rbo_flat[..]).unwrap();
-    let D_b4rbo = D_b4rbo_flat.chunks(2 * M_POINTS).collect::<Vec<_>>();
-    debug_assert_eq!(D_b4rbo, get_debug_data_scalars("D_b4rbo.csv", 2 * N_ROWS, 2 * M_POINTS));
-
     ////////////////////////////////
     println!("Branch 3");
     ////////////////////////////////
     let br3_time = Instant::now();
 
-    //d0 = MUL_row(d[mu], [S]) 1x8192
-    let d0: Vec<_> = (0..2 * N_ROWS)
-        .map(|i| {
-            let mut s = S.clone();
-            multp_vec(&mut s, &D_b4rbo[i], 0);
-            s
-        })
-        .collect();
-    debug_assert_eq!(
-        d0,
-        get_debug_data_points_xy1("d0.csv", 2 * N_ROWS, 2 * M_POINTS)
-    );
+    //d1 = MSM_batch(D[i], [S], l) 1x8192
+    reverse_order_scalars_batch(&mut D, (4 * M_POINTS * N_ROWS) / l);
+    let mut d1 = commit_batch(&mut S, &mut D, (4 * M_POINTS * N_ROWS) / l);
 
-    let mut d1 = vec![Point::infinity(); (2 * N_ROWS) * (2 * M_POINTS / l)];
-    let d0: Vec<_> = d0.into_iter().flatten().collect();
-
-    addp_vec(&mut d1, &d0, 2 * N_ROWS, 2 * M_POINTS, l, 0);
-
-    let d1 = split_vec_to_matrix(&d1, 2 * N_ROWS).clone();
-    debug_assert_eq!(
-        d1,
-        get_debug_data_points_xy1("d1.csv", 2 * N_ROWS, 2 * N_ROWS)
-    );
-
-    let mut delta0: Vec<_> = d1.into_iter().flatten().collect();
-    println!("iecntt batch for delta0");
     //delta0 = ECINTT_row(d1) 1x512
-    iecntt_batch(&mut delta0, 2 * N_ROWS, 0);
-    debug_assert_eq!(
-        delta0,
-        get_debug_data_points_proj_xy1_vec("delta0.csv", 2 * N_ROWS * 2 * N_ROWS)
-    );
+    let mut delta0 = interpolate_points_batch(&mut d1, &mut interpolate_column_large_domain, 2 * N_ROWS);
 
-    delta0.chunks_mut(2 * N_ROWS).for_each(|delta0_i| {
-        // delta1 = delta0 << 256 1x512
-        let delta1_i = [&delta0_i[N_ROWS..], &vec![Point::infinity(); N_ROWS]].concat();
-        q_.push(delta1_i);
-    });
+    // delta0 = delta0 << 256 1x512
+    shift_points_batch(&mut delta0, 2 * N_ROWS);
 
-    let mut delta1: Vec<_> = q_.into_iter().flatten().collect();
-
-    println!("ecntt batch for delta1");
-    //q[mu] = ECNTT_row(delta1) 1x512
-    ecntt_batch(&mut delta1, 2 * N_ROWS, 0);
-
-    let q_ = split_vec_to_matrix(&delta1, 2 * N_ROWS).clone();
-
-    debug_assert_eq!(
-        q_,
-        get_debug_data_points_xy1("q.csv", 2 * N_ROWS, 2 * N_ROWS)
-    );
-
-    println!("final check");
-
-    let P = q_
-        .iter()
-        .map(|row| list_to_reverse_bit_order(&row.clone()))
-        .collect::<Vec<_>>()
-        .to_vec();
+    //q[mu] = ECNTT_row(delta0) 1x512
+    let P = evaluate_points_batch(&mut delta0, &mut evaluate_column_large_domain, 2 * N_ROWS);
+    let mut P_host_flat: Vec<Point> = (0..(4 * M_POINTS * N_ROWS) / l).map(|_| Point::zero()).collect();
+    P.copy_to(&mut P_host_flat[..]).unwrap();
+    let P_host = split_vec_to_matrix(&P_host_flat, 2 * N_ROWS).clone();
 
     //final assertion
-    println!("Branch3 {:0.3?}", br3_time.elapsed());
-
-    assert_eq!(
-        P,
+    debug_assert_eq!(
+        P_host,
         get_debug_data_points_xy1("P.csv", 2 * N_ROWS, 2 * N_ROWS)
     );
+    println!("final check");
 
-    assert_ne!(P[12][23], Point::zero()); //dummy check
-    println!("success !!!",);
+    println!("Branch3 {:0.3?}", br3_time.elapsed());
+
+    assert_ne!(P_host[12][23], Point::zero()); //dummy check
+    println!("success !!!");
 }
 
 #[cfg(test)]

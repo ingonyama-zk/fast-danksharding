@@ -22,7 +22,6 @@ extern "C" {
         nof_rows: usize,
         nof_cols: usize,
         l: usize,
-        device_id: usize,
     ) -> c_int;
 
     fn transpose_matrix(
@@ -30,7 +29,12 @@ extern "C" {
         input: DevicePointer<ScalarField>,
         nof_rows: usize,
         nof_cols: usize,
-        device_id: usize,
+    ) -> c_int;
+
+    fn shift_batch(
+        arr: DevicePointer<Point>,
+        nof_rows: usize,
+        nof_cols_div_2: usize,
     ) -> c_int;
 }
 
@@ -40,7 +44,7 @@ pub fn addp_vec(
     nof_rows: usize,
     nof_cols: usize,
     l: usize,
-    device_id: usize,
+    _device_id: usize,
 ) -> i32 {
     unsafe {
         sum_of_points(
@@ -49,7 +53,6 @@ pub fn addp_vec(
             nof_rows,
             nof_cols,
             l,
-            device_id,
         )
     }
 }
@@ -66,7 +69,19 @@ pub fn transpose_scalar_matrix(
             input.as_device_ptr(),
             nof_rows,
             nof_cols,
-            0,
+        )
+    }
+}
+
+pub fn shift_points_batch(
+    arr: &mut DeviceBuffer<Point>,
+    batch_size: usize,
+) -> i32 {
+    unsafe {
+        shift_batch(
+            arr.as_device_ptr(),
+            batch_size,
+            arr.len() / (2 * batch_size),
         )
     }
 }
