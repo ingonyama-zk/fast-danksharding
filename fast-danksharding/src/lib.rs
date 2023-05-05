@@ -4,6 +4,9 @@ pub mod utils;
 
 use std::ffi::c_int;
 
+use rustacuda::memory::DevicePointer;
+use rustacuda::prelude::DeviceBuffer;
+
 use icicle_utils::field::*;
 
 use crate::{
@@ -19,7 +22,19 @@ extern "C" {
         nof_rows: usize,
         nof_cols: usize,
         l: usize,
-        device_id: usize,
+    ) -> c_int;
+
+    fn transpose_matrix(
+        out: DevicePointer<ScalarField>,
+        input: DevicePointer<ScalarField>,
+        nof_rows: usize,
+        nof_cols: usize,
+    ) -> c_int;
+
+    fn shift_batch(
+        arr: DevicePointer<Point>,
+        nof_rows: usize,
+        nof_cols_div_2: usize,
     ) -> c_int;
 }
 
@@ -29,7 +44,7 @@ pub fn addp_vec(
     nof_rows: usize,
     nof_cols: usize,
     l: usize,
-    device_id: usize,
+    _device_id: usize,
 ) -> i32 {
     unsafe {
         sum_of_points(
@@ -38,12 +53,40 @@ pub fn addp_vec(
             nof_rows,
             nof_cols,
             l,
-            device_id,
         )
     }
 }
 
-fn get_debug_data_scalars(filename: &str, height: usize, lenght: usize) -> Vec<Vec<Scalar>> {
+pub fn transpose_scalar_matrix(
+    output: &mut DevicePointer<ScalarField>,
+    input: &mut DeviceBuffer<ScalarField>,
+    nof_rows: usize,
+    nof_cols: usize,
+) -> i32 {
+    unsafe {
+        transpose_matrix(
+            *output,
+            input.as_device_ptr(),
+            nof_rows,
+            nof_cols,
+        )
+    }
+}
+
+pub fn shift_points_batch(
+    arr: &mut DeviceBuffer<Point>,
+    batch_size: usize,
+) -> i32 {
+    unsafe {
+        shift_batch(
+            arr.as_device_ptr(),
+            batch_size,
+            arr.len() / (2 * batch_size),
+        )
+    }
+}
+
+fn get_debug_data_scalars(filename: &str, height: usize, lenght: usize) -> Vec<Vec<ScalarField>> {
     let from_limbs = get_debug_data_scalar_vec(filename);
     let result = split_vec_to_matrix(&from_limbs, lenght);
     assert_eq!(result.len(), height);
@@ -52,12 +95,18 @@ fn get_debug_data_scalars(filename: &str, height: usize, lenght: usize) -> Vec<V
     result
 }
 
-fn get_debug_data_scalar_vec(filename: &str) -> Vec<Scalar> {
+fn field_from_limbs_be(a: &[u32]) -> ScalarField {
+    let mut a_mut = a.to_vec();
+    a_mut.reverse();
+    ScalarField::from_limbs(&a_mut)
+}
+
+fn get_debug_data_scalar_vec(filename: &str) -> Vec<ScalarField> {
     let limbs = csv_be_to_u32_be_limbs(
         &format!("{}{}", get_test_set_path(), filename),
         SCALAR_LIMBS,
     );
-    let from_limbs = from_limbs(limbs, SCALAR_LIMBS, Scalar::from_limbs_be);
+    let from_limbs = from_limbs(limbs, SCALAR_LIMBS, field_from_limbs_be);
     from_limbs
 }
 
@@ -154,8 +203,8 @@ mod tests {
         *,
     };
 
-    fn scalar_to_ark_mod_p(sc: &Scalar) -> Fr {
-        let sc_ark = BigInteger256::new(u32_vec_to_u64_vec(&sc.limbs()).try_into().unwrap());
+    fn scalar_to_ark_mod_p(sc: &ScalarField) -> Fr {
+        let sc_ark = BigInteger256::new(u32_vec_to_u64_vec(&sc.limbs().to_vec()).try_into().unwrap());
 
         Fr::new(sc_ark)
     }
@@ -232,7 +281,7 @@ mod tests {
 
         let limbs = hex_be_to_padded_u32_le_vec(py_str, SCALAR_LIMBS);
 
-        let sc = Scalar::from_limbs_le(&limbs);
+        let sc = ScalarField::from_limbs(&limbs);
 
         let modulus = BigInteger256::new([
             0xffffffff00000001,
@@ -261,7 +310,7 @@ mod tests {
         let limbs = hex_be_to_padded_u32_be_vec(sample_be, SCALAR_LIMBS);
 
         assert_eq!(limbs.len(), SCALAR_LIMBS);
-        let scalar = Scalar::from_limbs_be(&limbs);
+        let scalar = field_from_limbs_be(&limbs);
 
         let sample_u32le = [
             0x3f7d4adeu32,
@@ -280,8 +329,8 @@ mod tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_vec_saclar_mul() {
-        let mut intoo = [Scalar::one(), Scalar::one(), Scalar::zero()];
-        let expected = [Scalar::one(), Scalar::zero(), Scalar::zero()];
+        let mut intoo = [ScalarField::one(), ScalarField::one(), ScalarField::zero()];
+        let expected = [ScalarField::one(), ScalarField::zero(), ScalarField::zero()];
         mult_sc_vec(&mut intoo, &expected, 0);
         assert_eq!(intoo, expected);
     }
@@ -312,7 +361,7 @@ mod tests {
         };
 
         let mut inout = [dummy_one, dummy_one, Point::zero()];
-        let scalars = [Scalar::one(), Scalar::zero(), Scalar::zero()];
+        let scalars = [ScalarField::one(), ScalarField::zero(), ScalarField::zero()];
         let expected = [
             Point::zero(),
             Point {

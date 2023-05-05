@@ -25,8 +25,8 @@ from fk20_multi import data_availabilty_using_fk20_multi
 
 import csv
 # 8x reduced size for testing, for full set use n = 512 and m = 4096
-n = 32*8
-m = 512*8
+n = 32
+m = 512
 PRIMITIVE_ROOT = 5
 MAX_DEGREE_POLY = MODULUS-1
 
