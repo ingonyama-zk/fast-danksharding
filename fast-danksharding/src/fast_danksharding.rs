@@ -53,25 +53,25 @@ pub fn main_flow() {
     println!("K0 {:0.3?}", br1_time.elapsed());
     debug_assert_eq!(K0, get_debug_data_points_proj_xy1_vec("K0.csv", N_ROWS));
 
-    // B0 = ECINTT_col(K0) N_POINTS x 1 (256x1)
+    // B0 = ECINTT_col(K0) N_ROWS x 1 (256x1)
     let mut B0 = K0.clone();
-    iecntt(&mut B0, 0);
+    iecntt_batch(&mut B0, N_ROWS, 0);
     println!("B0 {:0.3?}", br1_time.elapsed());
     debug_assert_eq!(B0, get_debug_data_points_proj_xy1_vec("B0.csv", N_ROWS));
 
-    // B1 = MUL_col(B0, [1 u u^2 ...]) N_POINTS x 1 (256x1)
+    // B1 = MUL_col(B0, [1 u u^2 ...]) N_ROWS x 1 (256x1)
     let mut B1 = B0.clone();
     multp_vec(&mut B1, &tf_u, 0);
     println!("B1 {:0.3?}", br1_time.elapsed());
     debug_assert_eq!(B1, get_debug_data_points_proj_xy1_vec("B1.csv", N_ROWS));
 
-    // K1 = ECNTT_col(B1) N_POINTS x 1 (256x1)
+    // K1 = ECNTT_col(B1) N_ROWS x 1 (256x1)
     let mut K1 = B1;
-    ecntt(&mut K1, 0);
+    ecntt_batch(&mut K1,  N_ROWS, 0);
     println!("K1 {:0.3?}", br1_time.elapsed());
     debug_assert_eq!(K1, get_debug_data_points_proj_xy1_vec("K1.csv", N_ROWS));
 
-    // K = [K0, K1]  // 2*N_POINTS x 1 (512x1 commitments)
+    // K = [K0, K1]  // 2*N_ROWS x 1 (512x1 commitments)
     let K = [K0, K1].concat();
     println!("K {:0.3?}", br1_time.elapsed());
     
