@@ -28,7 +28,10 @@ rand="0.8.5"
 default = ["bls12_381"]
 bls12_381 = ["icicle-utils/bls12_381", "ark-bls12-381/curve"]
 
+cuda=["default"]
+
 [profile.dev]
 opt-level = 0
+# lto = true
 debug = false
 codegen-units = 256
