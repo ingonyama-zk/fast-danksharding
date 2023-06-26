@@ -30,7 +30,7 @@ m = 512*8
 PRIMITIVE_ROOT = 5
 MAX_DEGREE_POLY = MODULUS-1
 
-test_vectors_path = f'../test_vectors/{n}x{m}/'
+test_vectors_path = f'test_vectors/{n}x{m}/'
 if not os.path.exists(test_vectors_path):
     os.makedirs(test_vectors_path)
     
