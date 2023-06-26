@@ -8,7 +8,7 @@ This implementation is meant to run entirely on an NVIDIA GPU.The code is a high
 
 ## Build and usage
 
-> NOTE: [NVCC], [Rust] are prerequisites for building. Python 3.10 and up for test data generation.
+> NOTE: [NVCC], [Rust], [C++17] are prerequisites for building. Python 3.10 and up for test data generation.
 
 1. ICICLE library supports BLS12-381 as default curve, that is the curve in use for danksharding
 2. Go into git dir init the submodule and update
