@@ -146,10 +146,13 @@ mod tests {
     use ark_bls12_381::{Fr, FrParameters};
     use ark_ec::msm::VariableBaseMSM;
     use ark_ff::{BigInteger256, FpParameters};
-    use icicle_utils::{msm, mult_sc_vec, multp_vec, utils::u32_vec_to_u64_vec};
+    use ark_poly::{EvaluationDomain, GeneralEvaluationDomain};
+    use ark_std::UniformRand;
+    use icicle_utils::{get_rng, msm, mult_sc_vec, multp_vec, utils::u32_vec_to_u64_vec};
 
     use crate::{
         fast_danksharding::{M_POINTS, N_ROWS},
+        matrix::rows_to_cols_flatten,
         utils::*,
         *,
     };
@@ -247,7 +250,7 @@ mod tests {
         assert_eq!(
             scalar_to_ark_mod_p(&sc),
             ark_mod,
-            "\n******\n{:08X?}\n******\n{:08X?}\n******\n",
+            "\n******\n{:#08X?}\n******\n{:#08X?}\n******\n",
             scalar_to_ark_mod_p(&sc),
             ark_mod
         );
@@ -328,5 +331,60 @@ mod tests {
         ];
         multp_vec(&mut inout, &scalars, 0);
         assert_eq!(inout, expected);
+    }
+
+    #[test]
+    fn test_ntt_bailey_4step_model() {
+         for batch_size_log in [0, 1, 2, 3, 6, 8] {
+            for ntt_size_log in [0, 1, 2, 4, 8] {
+                let n1 = 1 << batch_size_log;
+                let n2 = 1 << ntt_size_log;
+
+                let seed1 = None; //Some(1); //some value to fix the rng
+
+                let n = n1 * n2;
+
+                let mut rng = get_rng(seed1);
+
+                let values_ark = (0..n).map(|_| Fr::rand(&mut rng)).collect::<Vec<Fr>>();
+
+                let domain = GeneralEvaluationDomain::<Fr>::new(n).unwrap();
+                let full_ntt_result = domain.fft(&values_ark);
+
+                let batches = rows_to_cols_flatten(&values_ark.clone(), n2);
+
+                let batch_domain_n1 = GeneralEvaluationDomain::<Fr>::new(n1).unwrap();
+
+                let mut batches = batches
+                    .chunks(n1)
+                    .into_iter()
+                    .map(|col| batch_domain_n1.fft(col))
+                    .collect::<Vec<_>>()
+                    .concat();
+
+                let twf_w = domain.elements().collect::<Vec<_>>();
+
+                for i in 0..n2 {
+                    for j in 0..n1 {
+                        batches[i * n1 + j] = twf_w[i * j] * batches[i * n1 + j];
+                    }
+                }
+
+                let batches = rows_to_cols_flatten(&batches, n1);
+
+                let batch_domain_n2 = GeneralEvaluationDomain::<Fr>::new(n2).unwrap();
+
+                let batches = batches
+                    .chunks(n2)
+                    .into_iter()
+                    .map(|row| batch_domain_n2.fft(row))
+                    .collect::<Vec<_>>()
+                    .concat();
+
+                let batches = rows_to_cols_flatten(&batches, n2);
+
+                assert_eq!(full_ntt_result, batches);
+            }
+        }
     }
 }
