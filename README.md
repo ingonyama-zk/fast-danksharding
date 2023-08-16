@@ -8,7 +8,7 @@ This implementation is meant to run entirely on an NVIDIA GPU.The code is a high
 
 ## Build and usage
 
-> NOTE: [CUDA 12+], [NVCC], [Rust], [C++17] are prerequisites for building. Python 3.10 and up with [numpy](https://numpy.org/install/) and [tqdm](https://tqdm.github.io/) packages for test data generation. Tested on Ubuntu 20.04+
+> NOTE: [CUDA 12+], [NVCC], [Rust], [C++17] are prerequisites for building. Python 3.10 and up with [numpy] and [tqdm] packages for test data generation. Tested on Ubuntu 20.04+
 
 1. [ICICLE] library supports [BLS12-381] as default curve, that is the curve in use for danksharding
 2. Go into git dir init the submodule and update
@@ -44,6 +44,8 @@ See [LICENSE-MIT][LMIT] for details.
 [NVCC]: https://docs.nvidia.com/cuda/#installation-guides
 [Rust]: https://www.rust-lang.org/
 [C++17]: https://en.cppreference.com/w/cpp/17
+[numpy]: https://numpy.org/install/
+[tqdm]: https://tqdm.github.io/
 [CRV_TEMPLATE]: ./icicle/curves/curve_template.cuh
 [CRV_CONFIG]: ./icicle/curves/curve_config.cuh
 [B_SCRIPT]: ./build.rs
