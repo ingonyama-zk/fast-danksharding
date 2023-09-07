@@ -1,6 +1,13 @@
 use std::time::Instant;
 
-use icicle_utils::{field::Point, *};
+use icicle::curves::bls12_381::*;
+
+use icicle::test_bls12_381::ntt_batch_bls12_381 as ntt_batch;
+use icicle::test_bls12_381::intt_batch_bls12_381 as intt_batch;
+use icicle::test_bls12_381::ecntt_batch_bls12_381 as ecntt_batch;
+use icicle::test_bls12_381::iecntt_batch_bls12_381 as iecntt_batch;
+use icicle::test_bls12_381::msm_batch_bls12_381 as msm_batch;
+use icicle::test_bls12_381::multp_vec_bls12_381 as multp_vec;
 
 use crate::{matrix::*, utils::*, *};
 
@@ -25,7 +32,7 @@ pub fn main_flow() {
     //TODO: now S is preprocessed, copy preprocessing here
     let S = get_debug_data_points_proj_xy1_vec("S.csv", 2 * M_POINTS);
 
-    let mut q_ = Vec::<Vec<Point>>::new();
+    let mut q_ = Vec::<Vec<Point_BLS12_381>>::new();
     const l: usize = 16;
     println!("loaded test data, processing...");
 
@@ -245,7 +252,7 @@ pub fn main_flow() {
         get_debug_data_points_xy1("P.csv", 2 * N_ROWS, 2 * N_ROWS)
     );
 
-    assert_ne!(P[12][23], Point::zero()); //dummy check
+    assert_ne!(P[12][23], Point_BLS12_381::zero()); //dummy check
     println!("success !!!",);
 }
 

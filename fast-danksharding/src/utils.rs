@@ -73,7 +73,7 @@ pub fn list_to_reverse_bit_order<T: Copy>(l: &[T]) -> Vec<T> {
 
 #[cfg(test)]
 mod tests {
-    use icicle_utils::field::SCALAR_LIMBS;
+    use icicle::curves::bls12_381::SCALAR_LIMBS_BLS12_381 as SCALAR_LIMBS;
 
     use super::*;
 

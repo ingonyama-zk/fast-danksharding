@@ -1,4 +1,4 @@
-#include "../../../icicle/icicle/curves/curve_config.cuh"
+#include "../../../icicle/icicle/curves/bls12_381/curve_config.cuh"
 #include <cuda.h>
 
 template <typename P>
@@ -49,11 +49,11 @@ void point_sum(P* h_outputs, P* h_inputs, unsigned nof_rows, unsigned nof_cols, 
   cudaFree(d_outputs);
 }
 
-extern "C" int sum_of_points(projective_t *out, projective_t in[], size_t nof_rows, size_t nof_cols, size_t l, size_t device_id = 0)
+extern "C" int sum_of_points(BLS12_381::projective_t *out, BLS12_381::projective_t in[], size_t nof_rows, size_t nof_cols, size_t l, size_t device_id = 0)
 {
     try
     {
-        point_sum<projective_t>(out, in, nof_rows, nof_cols, l);
+        point_sum<BLS12_381::projective_t>(out, in, nof_rows, nof_cols, l);
 
         return CUDA_SUCCESS;
     }

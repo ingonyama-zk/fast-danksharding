@@ -4,7 +4,13 @@ pub mod utils;
 
 use std::ffi::c_int;
 
-use icicle_utils::field::*;
+use icicle::curves::bls12_381::*;
+
+use BaseField_BLS12_381 as BaseField;
+use Point_BLS12_381 as Point;
+use ScalarField_BLS12_381 as Scalar;
+use BASE_LIMBS_BLS12_381 as BASE_LIMBS;
+use SCALAR_LIMBS_BLS12_381 as SCALAR_LIMBS;
 
 use crate::{
     fast_danksharding::{M_POINTS, N_ROWS},
@@ -146,7 +152,21 @@ mod tests {
     use ark_bls12_381::{Fr, FrParameters};
     use ark_ec::msm::VariableBaseMSM;
     use ark_ff::{BigInteger256, FpParameters};
-    use icicle_utils::{msm, mult_sc_vec, multp_vec, utils::u32_vec_to_u64_vec};
+
+    use icicle::test_bls12_381::ecntt_batch_bls12_381 as ecntt_batch;
+    use icicle::test_bls12_381::iecntt_batch_bls12_381 as iecntt_batch;
+    use icicle::test_bls12_381::intt_batch_bls12_381 as intt_batch;
+    use icicle::test_bls12_381::msm_batch_bls12_381 as msm_batch;
+    use icicle::test_bls12_381::msm_bls12_381 as msm;
+    use icicle::test_bls12_381::mult_sc_vec_bls12_381;
+    use icicle::test_bls12_381::multp_vec_bls12_381 as multp_vec;
+    use icicle::test_bls12_381::ntt_batch_bls12_381 as ntt_batch;
+    use icicle::utils::u32_vec_to_u64_vec;
+
+    use BaseField_BLS12_381 as BaseField;
+    use Point_BLS12_381 as Point;
+    use PointAffineNoInfinity_BLS12_381 as PointAffineNoInfinity;
+    use ScalarField_BLS12_381 as Scalar;
 
     use crate::{
         fast_danksharding::{M_POINTS, N_ROWS},
@@ -282,7 +302,7 @@ mod tests {
     fn test_vec_saclar_mul() {
         let mut intoo = [Scalar::one(), Scalar::one(), Scalar::zero()];
         let expected = [Scalar::one(), Scalar::zero(), Scalar::zero()];
-        mult_sc_vec(&mut intoo, &expected, 0);
+        mult_sc_vec_bls12_381(&mut intoo, &expected, 0);
         assert_eq!(intoo, expected);
     }
 
