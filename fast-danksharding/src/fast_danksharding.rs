@@ -2,6 +2,7 @@ use std::time::Instant;
 
 use icicle::curves::bls12_381::*;
 
+use icicle::test_bls12_381::mult_sc_vec_bls12_381 as mult_sc_vec;
 use icicle::test_bls12_381::ntt_batch_bls12_381 as ntt_batch;
 use icicle::test_bls12_381::intt_batch_bls12_381 as intt_batch;
 use icicle::test_bls12_381::ecntt_batch_bls12_381 as ecntt_batch;
