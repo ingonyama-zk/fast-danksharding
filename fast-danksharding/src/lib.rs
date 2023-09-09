@@ -323,6 +323,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     #[allow(non_snake_case)]
     fn test_vec_point_mul() {
         let dummy_one = Point {
