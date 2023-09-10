@@ -85,7 +85,7 @@ pub fn main_flow() {
     println!("K {:0.3?}", br1_time.elapsed());
     
     println!("Branch1 {:0.3?}", br1_time.elapsed());
-    debug_assert_eq!(K, get_debug_data_points_proj_xy1_vec("K.csv", 2 * N_ROWS));
+    assert_eq!(K, get_debug_data_points_proj_xy1_vec("K.csv", 2 * N_ROWS));
 
     ////////////////////////////////
     println!("Branch 2");
@@ -134,6 +134,7 @@ pub fn main_flow() {
     //D_rows = NTT_cols(E0) 256x4096
     let mut D_rows = rows_to_cols_flatten(&E0, M_POINTS);
     ntt_batch(&mut D_rows, N_ROWS, 0);
+    println!("D_rows ntt_batch {:0.3?}", br2_time.elapsed());
     let D_rows = rows_to_cols_flatten(&D_rows, N_ROWS);
 
     debug_assert_eq!(D_rows, get_debug_data_scalar_vec("D_rows.csv"));
@@ -141,6 +142,7 @@ pub fn main_flow() {
     // D_both = NTT_cols(E1) 256x4096
     let mut D_both = rows_to_cols_flatten(&E1, M_POINTS);
     ntt_batch(&mut D_both, N_ROWS, 0);
+    println!("D_both ntt_batch {:0.3?}", br2_time.elapsed());
     let D_both = rows_to_cols_flatten(&D_both, N_ROWS);
 
     debug_assert_eq!(D_both, get_debug_data_scalar_vec("D_both.csv"));
@@ -148,6 +150,7 @@ pub fn main_flow() {
     // D_cols = NTT_cols(E2) 256x4096
     let mut D_cols = rows_to_cols_flatten(&E2, M_POINTS);
     ntt_batch(&mut D_cols, N_ROWS, 0);
+    println!("D_cols ntt_batch {:0.3?}", br2_time.elapsed());
     let D_cols = rows_to_cols_flatten(&D_cols, N_ROWS);
 
     debug_assert_eq!(D_cols, get_debug_data_scalar_vec("D_cols.csv"));
@@ -166,6 +169,9 @@ pub fn main_flow() {
         .concat(),
     );
 
+    println!("D_b4rbo concat {:0.3?}", br2_time.elapsed());
+    
+
     debug_assert_eq!(
         D_b4rbo,
         get_debug_data_scalars("D_b4rbo.csv", 2 * N_ROWS, 2 * M_POINTS)
@@ -179,10 +185,10 @@ pub fn main_flow() {
         .iter()
         .map(|row| list_to_reverse_bit_order(row))
         .collect::<Vec<_>>();
-
-    debug_assert_eq!(D, get_debug_data_scalars("D.csv", 2 * N_ROWS, 2 * M_POINTS));
-
+    
     println!("Branch2 {:0.3?}", br2_time.elapsed());
+
+    assert_eq!(D, get_debug_data_scalars("D.csv", 2 * N_ROWS, 2 * M_POINTS));
 
     ////////////////////////////////
     println!("Branch 3");
