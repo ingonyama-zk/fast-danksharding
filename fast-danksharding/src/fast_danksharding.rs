@@ -45,7 +45,7 @@ pub fn main_flow() {
 
     //C_rows = INTT_rows(D_in)
     intt_batch(&mut C_rows, M_POINTS, 0);
-    assert_eq!(C_rows[15], get_debug_data_scalar_vec("C_rows.csv")[15]);
+    assert_eq!(C_rows[17], get_debug_data_scalar_vec("C_rows.csv")[17]);
 
     //[s] = SRS 1x4096
     assert!(SRS[0].to_ark_affine().is_on_curve());
@@ -60,32 +60,32 @@ pub fn main_flow() {
     // K0 = MSM_rows(C_rows) (256x1)
     let K0 = msm_batch(&vec![s_affine; N_ROWS].concat(), &C_rows, N_ROWS, 0);
     println!("K0 {:0.3?}", br1_time.elapsed());
-    assert_eq!(K0[4], get_debug_data_points_proj_xy1_vec("K0.csv", N_ROWS)[4]);
+    debug_assert_eq!(K0, get_debug_data_points_proj_xy1_vec("K0.csv", N_ROWS));
 
     // B0 = ECINTT_col(K0) N_ROWS x 1 (256x1)
     let mut B0 = K0.clone();
     iecntt_batch(&mut B0, N_ROWS, 0);
     println!("B0 {:0.3?}", br1_time.elapsed());
-    assert_eq!(B0[17], get_debug_data_points_proj_xy1_vec("B0.csv", N_ROWS)[17]);
+    debug_assert_eq!(B0, get_debug_data_points_proj_xy1_vec("B0.csv", N_ROWS));
 
     // B1 = MUL_col(B0, [1 u u^2 ...]) N_ROWS x 1 (256x1)
     let mut B1 = B0.clone();
     multp_vec(&mut B1, &tf_u, 0);
     println!("B1 {:0.3?}", br1_time.elapsed());
-    assert_eq!(B1[12], get_debug_data_points_proj_xy1_vec("B1.csv", N_ROWS)[12]);
+    debug_assert_eq!(B1, get_debug_data_points_proj_xy1_vec("B1.csv", N_ROWS));
 
     // K1 = ECNTT_col(B1) N_ROWS x 1 (256x1)
     let mut K1 = B1;
     ecntt_batch(&mut K1,  N_ROWS, 0);
     println!("K1 {:0.3?}", br1_time.elapsed());
-    assert_eq!(K1[12], get_debug_data_points_proj_xy1_vec("K1.csv", N_ROWS)[12]);
+    debug_assert_eq!(K1, get_debug_data_points_proj_xy1_vec("K1.csv", N_ROWS));
 
     // K = [K0, K1]  // 2*N_ROWS x 1 (512x1 commitments)
     let K = [K0, K1].concat();
     println!("K {:0.3?}", br1_time.elapsed());
     
     println!("Branch1 {:0.3?}", br1_time.elapsed());
-    assert_eq!(K[15], get_debug_data_points_proj_xy1_vec("K.csv", 2 * N_ROWS)[15]);
+    debug_assert_eq!(K, get_debug_data_points_proj_xy1_vec("K.csv", 2 * N_ROWS));
 
     ////////////////////////////////
     println!("Branch 2");
@@ -97,60 +97,60 @@ pub fn main_flow() {
     intt_batch(&mut C, N_ROWS, 0);
     let C = rows_to_cols_flatten(&C, N_ROWS);
     println!("C {:0.3?}", br2_time.elapsed());
-    assert_eq!(C[15], get_debug_data_scalar_vec("C.csv")[15]);
+    debug_assert_eq!(C, get_debug_data_scalar_vec("C.csv"));
 
     // C0 = MUL_cols(C, [1 w w^2 ...]) 256x4096
     let mut C0 = C.clone();
     mult_sc_batch_vec(&mut C0, &tf_w, 0);
     println!("C0 {:0.3?}", br2_time.elapsed());
-    assert_eq!(C0, get_debug_data_scalar_vec("C0.csv"));
+    debug_assert_eq!(C0, get_debug_data_scalar_vec("C0.csv"));
 
     // C2 = MUL_rows(C, [1 u u^2 ...]) 256x4096
     let mut C2 = rows_to_cols_flatten(&C, M_POINTS);
     mult_sc_batch_vec(&mut C2, &tf_u, 0);
     let C2 = rows_to_cols_flatten(&C2, N_ROWS);
     println!("C2 {:0.3?}", br2_time.elapsed());
-    assert_eq!(C2, get_debug_data_scalar_vec("C2.csv"));
+    debug_assert_eq!(C2, get_debug_data_scalar_vec("C2.csv"));
 
     //E0 = NTT_rows(C0) 256x4096
     let mut E0: Vec<_> = C0;
     ntt_batch(&mut E0, M_POINTS, 0);
     println!("E0 {:0.3?}", br2_time.elapsed());
-    assert_eq!(E0, get_debug_data_scalar_vec("E0.csv"));
+    debug_assert_eq!(E0, get_debug_data_scalar_vec("E0.csv"));
 
     //E1 = MUL_rows(E0, [1 u u^2 ...]) 256x4096
     let mut E1 = rows_to_cols_flatten(&E0, M_POINTS);
     mult_sc_batch_vec(&mut E1, &tf_u, 0);
     let E1 = rows_to_cols_flatten(&E1, N_ROWS);
     println!("E1 {:0.3?}", br2_time.elapsed());
-    assert_eq!(E1, get_debug_data_scalar_vec("E1.csv"));
+    debug_assert_eq!(E1, get_debug_data_scalar_vec("E1.csv"));
 
     // E2 = NTT_rows(C2) 256x4096
     let mut E2: Vec<_> = C2;
     ntt_batch(&mut E2, M_POINTS, 0);
     println!("E2 {:0.3?}", br2_time.elapsed());
-    assert_eq!(E2, get_debug_data_scalar_vec("E2.csv"));
+    debug_assert_eq!(E2, get_debug_data_scalar_vec("E2.csv"));
 
     //D_rows = NTT_cols(E0) 256x4096
     let mut D_rows = rows_to_cols_flatten(&E0, M_POINTS);
     ntt_batch(&mut D_rows, N_ROWS, 0);
     let D_rows = rows_to_cols_flatten(&D_rows, N_ROWS);
 
-    assert_eq!(D_rows, get_debug_data_scalar_vec("D_rows.csv"));
+    debug_assert_eq!(D_rows, get_debug_data_scalar_vec("D_rows.csv"));
 
     // D_both = NTT_cols(E1) 256x4096
     let mut D_both = rows_to_cols_flatten(&E1, M_POINTS);
     ntt_batch(&mut D_both, N_ROWS, 0);
     let D_both = rows_to_cols_flatten(&D_both, N_ROWS);
 
-    assert_eq!(D_both, get_debug_data_scalar_vec("D_both.csv"));
+    debug_assert_eq!(D_both, get_debug_data_scalar_vec("D_both.csv"));
 
     // D_cols = NTT_cols(E2) 256x4096
     let mut D_cols = rows_to_cols_flatten(&E2, M_POINTS);
     ntt_batch(&mut D_cols, N_ROWS, 0);
     let D_cols = rows_to_cols_flatten(&D_cols, N_ROWS);
 
-    assert_eq!(D_cols, get_debug_data_scalar_vec("D_cols.csv"));
+    debug_assert_eq!(D_cols, get_debug_data_scalar_vec("D_cols.csv"));
 
     //D_b4rbo = INTERLEAVE_cols( [D_in; D_cols], [D_rows; D_both] ) 512x8192
     let D_b4rbo = interleave_cols(
@@ -166,13 +166,13 @@ pub fn main_flow() {
         .concat(),
     );
 
-    assert_eq!(
+    debug_assert_eq!(
         D_b4rbo,
         get_debug_data_scalars("D_b4rbo.csv", 2 * N_ROWS, 2 * M_POINTS)
     );
 
-    assert_eq!(D_b4rbo.len(), N_ROWS * 2);
-    assert_eq!(D_b4rbo[0].len(), M_POINTS * 2);
+    debug_assert_eq!(D_b4rbo.len(), N_ROWS * 2);
+    debug_assert_eq!(D_b4rbo[0].len(), M_POINTS * 2);
 
     //D = RBO_cols(D_b4rbo) 512x8192
     let D = D_b4rbo
@@ -180,7 +180,7 @@ pub fn main_flow() {
         .map(|row| list_to_reverse_bit_order(row))
         .collect::<Vec<_>>();
 
-    assert_eq!(D, get_debug_data_scalars("D.csv", 2 * N_ROWS, 2 * M_POINTS));
+    debug_assert_eq!(D, get_debug_data_scalars("D.csv", 2 * N_ROWS, 2 * M_POINTS));
 
     println!("Branch2 {:0.3?}", br2_time.elapsed());
 
@@ -196,7 +196,7 @@ pub fn main_flow() {
     multp_vec(&mut d0, &D_b4rbo_flat, 0);
     println!("mult batch d0 {:0.3?}", br3_time.elapsed());
     
-    assert_eq!(
+    debug_assert_eq!(
         d0,
         get_debug_data_points_proj_xy1_vec("d0.csv", 2 * N_ROWS * 2 * M_POINTS)
     );
@@ -205,7 +205,7 @@ pub fn main_flow() {
     addp_vec(&mut d1, &d0, 2 * N_ROWS, 2 * M_POINTS, l, 0);
     println!("add batch d0 + d1 {:0.3?}", br3_time.elapsed());
 
-    assert_eq!(
+    debug_assert_eq!(
         d1,
         get_debug_data_points_proj_xy1_vec("d1.csv", 2 * N_ROWS * 2 * N_ROWS)
     );
@@ -214,7 +214,7 @@ pub fn main_flow() {
     //delta0 = ECINTT_row(d1) 1x512
     iecntt_batch(&mut delta0, 2 * N_ROWS, 0);
     println!("iecntt batch for delta0 {:0.3?}", br3_time.elapsed());
-    assert_eq!(
+    debug_assert_eq!(
         delta0,
         get_debug_data_points_proj_xy1_vec("delta0.csv", 2 * N_ROWS * 2 * N_ROWS)
     );
@@ -233,7 +233,7 @@ pub fn main_flow() {
 
     let q_ = split_vec_to_matrix(&delta1, 2 * N_ROWS);
 
-    assert_eq!(
+    debug_assert_eq!(
         q_,
         get_debug_data_points_xy1("q.csv", 2 * N_ROWS, 2 * N_ROWS)
     );
